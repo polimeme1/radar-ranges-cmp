@@ -1,5 +1,7 @@
 #include "solution.h"
 
+ISolution::~ISolution() = default;
+
 class Solution final : public ISolution
 {
  public:

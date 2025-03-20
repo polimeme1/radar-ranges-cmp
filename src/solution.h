@@ -20,6 +20,9 @@
 class ISolution
 {
  public:
+
+  virtual ~ISolution();
+
   enum class Result
   {
     Equal,
