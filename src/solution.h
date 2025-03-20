@@ -33,8 +33,8 @@ class ISolution
   };
 
   [[nodiscard]] virtual auto solve_from_file(
-    std::filesystem::path const& lhs,
-    std::filesystem::path const& rhs
+    std::filesystem::path const& a,
+    std::filesystem::path const& b
   ) -> Result = 0;
 
   [[nodiscard]] virtual auto solve_from_stdin() -> Result = 0;
