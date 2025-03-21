@@ -1,7 +1,7 @@
 #include "solution.h"
 
 #include <iostream>
-#include <set>
+#include <vector>
 #include <type_traits>
 #include <fstream>
 #include <exception>
@@ -92,20 +92,28 @@ namespace
                                         : cmp_double_less(lhs.x, rhs.x);
 }
 
-/// \brief Тип множества уникальных отсортированных точек
-using PointsSet = std::set<Point, std::decay_t<decltype(cmp_points_less)>>;
+/// \brief Набор точек
+using Points = std::vector<Point>;
 
-/// \brief Считывает из файла точки и возвращает уникальные в виде отсортированного множества
+/// \brief Считывает набор точек из файла
 /// \param path Путь до файла, из которого производится чтение
-/// \returns Отсортированное множество уникальных считанных точек
-[[nodiscard]] static auto read_points_from_file(std::filesystem::path const& path) -> PointsSet
+/// \returns Набор считанных точек
+[[nodiscard]] static auto read_points_from_file(std::filesystem::path const& path) -> Points
 {
-  PointsSet result {cmp_points_less};
+  Points result {};
   std::ifstream ifs {path};
   Point tmp {};
   while(ifs >> tmp.x >> tmp.y) {
-    result.insert(tmp);
+    result.emplace_back(tmp);
   }
+  return result;
+}
+
+/// \brief Создаёт копию набора точек, в которой точки отсортированы cmp_points_less
+[[nodiscard]] static auto make_sorted_copy_of_points(Points const& points) -> Points
+{
+  Points result = points;
+  std::ranges::sort(result, cmp_points_less);
   return result;
 }
 
@@ -118,16 +126,30 @@ using PointsSet = std::set<Point, std::decay_t<decltype(cmp_points_less)>>;
 /// \param a Множество А
 /// \param b Множество B
 /// \returns Отношение множеств A и B
-[[nodiscard]] static auto cmp_point_sets(PointsSet const& a, PointsSet const& b)
-  -> ISolution::Result
+[[nodiscard]] static auto cmp_point_sets(Points const& a, Points const& b) -> ISolution::Result
 {
-  if(std::ranges::equal(a, b, cmp_points_equal)) {
+  // получение отсортированных a и b
+  Points sorted_a = make_sorted_copy_of_points(a);
+  Points sorted_b = make_sorted_copy_of_points(b);
+
+  // сдвиг всех дубликатов в конец отсортированных наборов точек
+  auto const dup_a = std::ranges::unique(sorted_a, cmp_points_equal);
+  auto const dup_b = std::ranges::unique(sorted_b, cmp_points_equal);
+
+  // диапазоны отсортированных уникальных точек
+  auto unique_a = std::ranges::subrange {std::ranges::begin(sorted_a), std::ranges::begin(dup_a)};
+  auto unique_b = std::ranges::subrange {std::ranges::begin(sorted_b), std::ranges::begin(dup_b)};
+
+  auto const len_a = std::ranges::size(unique_a);
+  auto const len_b = std::ranges::size(unique_b);
+
+  if(std::ranges::equal(unique_a, unique_b, cmp_points_equal)) {
     return ISolution::Result::Equal;
   }
-  if(a.size() > b.size() and std::ranges::includes(a, b, cmp_points_less)) {
+  if(len_a > len_b and std::ranges::includes(unique_a, unique_b, cmp_points_less)) {
     return ISolution::Result::BSubsetOfA;
   }
-  if(b.size() > a.size() and std::ranges::includes(b, a, cmp_points_less)) {
+  if(len_b > len_a and std::ranges::includes(unique_b, unique_a, cmp_points_less)) {
     return ISolution::Result::ASubsetOfB;
   }
   return ISolution::Result::NotEqual;
