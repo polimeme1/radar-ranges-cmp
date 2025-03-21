@@ -13,12 +13,15 @@
 /// \remark Можно вынести задание в CMake через target_compile_definitions
 #define SOLUTION_NAN_AWARE_COMPARISONS 1
 
-/// \brief Точка на плоскости
-struct Point
+namespace
 {
-  double x;  ///< Положение точки по оси X
-  double y;  ///< Положение точки по оси Y
-};
+  /// \brief Точка на плоскости
+  struct Point
+  {
+    double x;  ///< Положение точки по оси X
+    double y;  ///< Положение точки по оси Y
+  };
+}  // namespace
 
 /// \brief Сравнивает на равенство два double значения
 /// \details
