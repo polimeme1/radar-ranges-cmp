@@ -1,5 +1,7 @@
 #define CATCH_CONFIG_MAIN
 
+#include <iostream>
+#include <sstream>
 #include <string_view>
 #include <filesystem>
 #include <catch2/catch_all.hpp>
@@ -28,13 +30,28 @@ TEST_CASE("Test")
   REQUIRE(solution->solve_from_file(file("4.txt"), file("2.txt")) == ISolution::Result::NotEqual);
 }
 
-// TEST_CASE("Test stdin")
-// {
-//   auto solution = make_solution();
-//
-//   REQUIRE(solution != nullptr);
-//   REQUIRE(solution->solve_from_stdin() == ISolution::Result::Equal);
-// }
+TEST_CASE("Test stdin")
+{
+  auto solution = make_solution();
+
+  const std::istringstream iss {
+
+    "1 2\n"
+    "1 2\n"
+    "3 4  \n"
+    "1 \t   2\n"
+    "   \n"
+
+    "  3 4\n"
+    "1 2\n"
+    "\n"
+
+  };
+  std::cin.rdbuf(iss.rdbuf());
+
+  REQUIRE(solution != nullptr);
+  REQUIRE(solution->solve_from_stdin() == ISolution::Result::Equal);
+}
 
 // benchmark
 TEST_CASE("Benchmark")

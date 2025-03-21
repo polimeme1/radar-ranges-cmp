@@ -1,17 +1,25 @@
 #include "solution.h"
 
-#include <iostream>
-#include <vector>
-#include <type_traits>
-#include <fstream>
-#include <exception>
-#include <algorithm>
-
-#include <cmath>
-
 /// \brief Необходимость учёта NaN значений при сравнении точек
 /// \remark Можно вынести задание в CMake через target_compile_definitions
 #define SOLUTION_NAN_AWARE_COMPARISONS 1
+
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <exception>
+#include <stdexcept>
+#include <algorithm>
+#include <ranges>
+#include <string>
+#include <ios>
+
+#include <cctype>
+#include <cstdlib>
+
+#if SOLUTION_NAN_AWARE_COMPARISONS
+#  include <cmath>
+#endif
 
 namespace
 {
@@ -109,6 +117,74 @@ using Points = std::vector<Point>;
   return result;
 }
 
+/// \brief Возвращает признак того, что строка состоит только из пробельных символов
+[[nodiscard]] static auto is_whitespace_line(std::string const& line) -> bool
+{
+  return std::ranges::all_of(line, [](char c) { return std::isspace(c); });
+}
+
+namespace
+{
+  /// \brief Результат извлечения double значения из строки
+  struct ReadDoubleResult
+  {
+    double value;     ///< Полученное значение
+    char const* end;  ///< Указатель на последний обработанный символ в строке
+  };
+}  // namespace
+
+/// \brief Извлекает double значение из строки
+/// \throws std::invalid_argument Не удалось произвести преобразование или результат выходит за
+/// пределы представляемого типом double диапазона значений
+[[nodiscard]] static auto read_double_from_line(char const* line_begin) -> ReadDoubleResult
+{
+  char* line_end;
+  double const value = std::strtod(line_begin, &line_end);
+  if(line_end == line_begin) {
+    throw std::invalid_argument {"read_double_from_line: failed to parse double"};
+  }
+  if(value == HUGE_VAL) {
+    throw std::invalid_argument {"read_double_from_line: value range error"};
+  }
+  return ReadDoubleResult {value, line_end};
+}
+
+/// \brief Выполняет чтение координат точки из строки
+/// \returns Точка со считанными координатами
+/// \throws std::invalid_argument При неудачном извлечении координат точки
+/// \see read_double_from_line
+[[nodiscard]] static auto read_point_from_line(std::string const& line) -> Point
+{
+  auto const [x, end] = read_double_from_line(line.c_str());
+  auto const [y, _] = read_double_from_line(end);
+  return {x, y};
+}
+
+/// \brief Выполняет чтение набора точек с потока ввода
+/// \details
+/// Чтение выполняется построчно. Конец ввода обозначается пустой строкой (или состоящей только из
+/// пробельных символов). Ожидает, что каждая строка содержит последовательно записанные координаты
+/// точки на оси X и Y.
+/// \param is Читаемый поток ввода
+/// \returns Считанный набор точек
+/// \throws std::ios::failure При ошибке чтения очередной строки
+/// \see is_whitespace_line
+/// \see read_point_form_line
+[[nodiscard]] static auto read_points_from_stream(std::istream& is) -> Points
+{
+  Points result {};
+  std::string line;
+  while(true) {
+    if(not std::getline(is, line)) {
+      throw std::ios::failure {"read_points_from_stream: stream reading error"};
+    }
+    if(is_whitespace_line(line)) {
+      return result;
+    }
+    result.emplace_back(read_point_from_line(line));
+  }
+}
+
 /// \brief Создаёт копию набора точек, в которой точки отсортированы cmp_points_less
 [[nodiscard]] static auto make_sorted_copy_of_points(Points const& points) -> Points
 {
@@ -185,6 +261,18 @@ try {
   return Result::InternalError;
 }
 
-auto Solution::solve_from_stdin() -> Result { return Result::InternalError; }
+auto Solution::solve_from_stdin() -> Result
+try {
+  // считается, что std::cin ассоциирован с stdin
+  auto const a = read_points_from_stream(std::cin);
+  auto const b = read_points_from_stream(std::cin);
+  return cmp_point_sets(a, b);
+} catch(std::exception const& e) {
+  std::cerr << "Solution::solve_from_stdin: " << e.what() << '\n';
+  return Result::InternalError;
+} catch(...) {
+  std::cerr << "Solution::solve_from_stdin: Unknown error.\n";
+  return Result::InternalError;
+}
 
 auto make_solution() -> std::unique_ptr<ISolution> { return std::make_unique<Solution>(); }
