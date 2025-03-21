@@ -85,14 +85,19 @@ using PointsSet = std::set<Point, std::decay_t<decltype(cmp_points_less)>>;
 
 ISolution::~ISolution() = default;
 
-class Solution final : public ISolution
+namespace
 {
- public:
-  [[nodiscard]] auto solve_from_file(std::filesystem::path const& a, std::filesystem::path const& b)
-    -> Result override;
+  class Solution final : public ISolution
+  {
+   public:
+    [[nodiscard]] auto solve_from_file(
+      std::filesystem::path const& a,
+      std::filesystem::path const& b
+    ) -> Result override;
 
-  [[nodiscard]] auto solve_from_stdin() -> Result override;
-};
+    [[nodiscard]] auto solve_from_stdin() -> Result override;
+  };
+}  // namespace
 
 auto Solution::solve_from_file(std::filesystem::path const& a, std::filesystem::path const& b)
   -> Result
