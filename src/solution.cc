@@ -1,8 +1,12 @@
 #include "solution.h"
 
 /// \brief Необходимость учёта NaN значений при сравнении точек
-/// \remark Можно вынести задание в CMake через target_compile_definitions
 #define SOLUTION_NAN_AWARE_COMPARISONS 1
+
+/// \brief Определяет используемый способ сравнения на равенство двух double значений.
+/// При значении 1 используется сравнение по ULP, при 0 - по абсолютному и относительному допуску
+/// \see cmp_double_equal
+#define SOLUTION_CMP_EQ_WITHIN_ULPS 1
 
 #include <iostream>
 #include <vector>
@@ -14,12 +18,13 @@
 #include <string>
 #include <ios>
 
+#if SOLUTION_CMP_EQ_WITHIN_ULPS
+#  include <limits>
+#endif
+
 #include <cctype>
 #include <cstdlib>
-
-#if SOLUTION_NAN_AWARE_COMPARISONS
-#  include <cmath>
-#endif
+#include <cmath>
 
 namespace
 {
@@ -31,21 +36,64 @@ namespace
   };
 }  // namespace
 
+#if SOLUTION_CMP_EQ_WITHIN_ULPS
+/// \brief Сравнивает на равенство два double значения
+/// \param lhs Сравниваемое значение
+/// \param rhs Сравниваемое значение
+/// \param n Множитель допуска
+/// \returns Признак равенства lhs и rhs
+/// \see https://en.wikipedia.org/wiki/Unit_in_the_last_place
+[[nodiscard]] static auto eq_within_ulps(double lhs, double rhs, int n) -> bool
+{
+  using lim = std::numeric_limits<double>;
+  double const min_abs = std::min(std::abs(lhs), std::abs(rhs));
+  int const exp = min_abs < lim::min() ? lim::min_exponent - 1 : std::ilogb(min_abs);
+  return std::abs(lhs - rhs) <= n * std::ldexp(lim::epsilon(), exp);
+}
+#else
+
+/// \brief Сравнение на равенство двух double значений и использованием абсолютного и относительного
+/// допуска
+/// \param lhs Сравниваемое значение
+/// \param rhs Сравниваемое значение
+/// \param abs_tol Абсолютный допуск
+/// \param rel_tol Относительный допуск
+/// \returns Признак равенства lhs и rhs
+[[nodiscard]] static auto eq_within_tol(double lhs, double rhs, double abs_tol, double rel_tol)
+  -> bool
+{
+  double const diff_abs = std::abs(lhs - rhs);
+  if(diff_abs <= abs_tol) {
+    return true;
+  }
+  double const max_abs = std::max(std::abs(lhs), std::abs(rhs));
+  return diff_abs <= rel_tol * max_abs;
+}
+#endif
+
 /// \brief Сравнивает на равенство два double значения
 /// \details
+/// Используемый способ сравнения зависит от SOLUTION_CMP_EQ_WITHIN_ULPS.
 /// При SOLUTION_NAN_AWARE_COMPARISONS считает NaN == NaN и -NaN==-NaN.
 /// \param lhs Сравниваемое значение
 /// \param rhs Сравниваемое значение
 /// \returns Признак равенства lhs и rhs
+/// \see eq_within_ulps
+/// \see eq_within_tol
 [[nodiscard]] static auto cmp_double_equal(double lhs, double rhs) -> bool
 {
 #if SOLUTION_NAN_AWARE_COMPARISONS
   if(std::isnan(lhs)) {
     return std::isnan(rhs) and std::signbit(lhs) == std::signbit(rhs);
   }
-  return lhs == rhs;
+#endif
+#if SOLUTION_CMP_EQ_WITHIN_ULPS
+  constexpr int ulps = 3;
+  return eq_within_ulps(lhs, rhs, ulps);
 #else
-  return lhs == rhs;
+  constexpr double abs_tol = 1e-5;
+  constexpr double rel_tol = 1e-5;
+  return eq_within_tol(lhs, rhs, abs_tol, rel_tol);
 #endif
 }
 
